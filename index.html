@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Campañas a bases · Sí Viajo</title>
+<meta name="robots" content="noindex">
+<script src="config.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: barra negra de marca arriba, resumen en chips, calendario (semana/mes/lista) a la izquierda y ficha de campaña en panel lateral. */
+:root{
+  --ink:#111111;
+  --paper:#f6f5f0;
+  --card:#ffffff;
+  --brand:#ffd400;
+  --muted:#6b6a63;
+  --line:#e3e1d8;
+  --display:"Archivo", "Helvetica Neue", Arial, sans-serif;
+  --body:"Figtree", "Helvetica Neue", Arial, sans-serif;
+  --ok:#1f8a4c; --warn:#b26a00; --off:#8b8a83;
+  color-scheme: light;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.45}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+.top{background:var(--ink);color:#fff;padding:14px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-mark{background:var(--brand);color:var(--ink);font-family:var(--display);font-weight:800;padding:4px 8px;border-radius:4px;letter-spacing:-.02em}
+.logo h1{font-family:var(--display);font-size:18px;margin:0;font-weight:700;letter-spacing:-.01em}
+.top .spacer{flex:1}
+.btn{border:1px solid var(--line);background:var(--card);padding:8px 14px;border-radius:8px;font-weight:600}
+.btn:hover{border-color:var(--ink)}
+.btn-brand{background:var(--brand);border-color:var(--brand);color:var(--ink)}
+.btn-brand:hover{border-color:#fff}
+.btn-dark{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn-ghost{background:transparent;border-color:transparent}
+.btn-danger{color:#b3261e}
+
+.wrap{padding:18px 20px 40px;max-width:1400px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.notice{background:#fff7cc;border:1px solid #f0d860;padding:8px 12px;border-radius:8px;font-size:13px}
+.notice[hidden]{display:none}
+
+.stats{display:flex;gap:10px;flex-wrap:wrap}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;display:flex;align-items:baseline;gap:8px}
+.stat b{font-family:var(--display);font-size:22px;font-variant-numeric:tabular-nums}
+.stat span{color:var(--muted);font-size:13px}
+.stat.hot{border-color:var(--ink);box-shadow:inset 4px 0 0 var(--brand)}
+
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.seg{display:inline-flex;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:3px}
+.seg button{border:0;background:transparent;padding:6px 12px;border-radius:6px;font-weight:600;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.period{font-family:var(--display);font-size:20px;font-weight:700;margin:0 6px;text-transform:capitalize;min-width:200px}
+.nav{display:flex;gap:4px}
+.nav .btn{padding:6px 10px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+.filters select,.filters input{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:7px 10px}
+
+.board{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+
+/* Mes */
+.month{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.dow{padding:8px 10px;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--line);background:#fbfaf6}
+.day{min-height:112px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:6px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.day:nth-child(7n){border-right:0}
+.day.out{background:#faf9f4}
+.day.out .num{color:#b9b7ad}
+.num{font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;display:flex;justify-content:space-between}
+.day.today .num span{background:var(--brand);border-radius:99px;padding:0 6px}
+.chip{display:block;width:100%;text-align:left;border:0;border-radius:5px;padding:2px 6px;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:3px solid var(--c);background:color-mix(in srgb,var(--c) 16%,white)}
+.chip:hover{background:color-mix(in srgb,var(--c) 30%,white)}
+.more{font-size:11px;color:var(--muted);border:0;background:none;text-align:left;padding:0 6px}
+
+/* Semana: gantt */
+.week{display:grid;grid-template-columns:minmax(180px,240px) repeat(7,minmax(70px,1fr));overflow-x:auto}
+.wk-scroll{overflow-x:auto}
+.wh{padding:8px;border-bottom:1px solid var(--line);background:#fbfaf6;font-size:12px;font-weight:700;color:var(--muted)}
+.wh.today{background:var(--brand);color:var(--ink)}
+.wh small{display:block;font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+.wname{padding:10px;border-bottom:1px solid var(--line);font-weight:600;min-width:0}
+.wname button{border:0;background:none;padding:0;text-align:left;font-weight:700}
+.wname small{display:block;color:var(--muted);font-weight:500;font-size:12px}
+.wcell{border-bottom:1px solid var(--line);border-left:1px solid #f0eee6;padding:10px 0;position:relative}
+.wbar{position:absolute;top:12px;bottom:12px;left:0;right:0;background:var(--c);opacity:.9}
+.wbar.s{left:6px;border-top-left-radius:6px;border-bottom-left-radius:6px}
+.wbar.e{right:6px;border-top-right-radius:6px;border-bottom-right-radius:6px}
+.empty{padding:40px 20px;text-align:center;color:var(--muted)}
+
+/* Tarjetas */
+.cards-title{font-family:var(--display);font-size:16px;margin:4px 0 0}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px;border-top:4px solid var(--c);text-align:left}
+.card:hover{border-color:var(--ink);border-top-color:var(--c)}
+.card h3{margin:0;font-family:var(--display);font-size:16px;text-wrap:balance}
+.meta{display:flex;gap:6px;flex-wrap:wrap;font-size:12px}
+.pill{border-radius:99px;padding:2px 8px;font-weight:600;background:#f1efe7}
+.pill.tipo{background:color-mix(in srgb,var(--c) 22%,white)}
+.st-Activa{background:#dff3e6;color:var(--ok)}
+.st-Programada{background:#fff1d6;color:var(--warn)}
+.st-Finalizada{background:#ecebe6;color:var(--off)}
+.msg{background:#fbfaf6;border-radius:8px;padding:8px 10px;font-size:13px;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.dates{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* Lista */
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:820px}
+th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:#fbfaf6}
+td.d{font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.row{cursor:pointer}
+tr.row:hover td{background:#fffbe0}
+.dot{display:inline-block;width:9px;height:9px;border-radius:99px;background:var(--c);margin-right:6px}
+
+/* Panel / modal */
+.scrim{position:fixed;inset:0;background:rgba(17,17,17,.45);display:flex;justify-content:flex-end;z-index:20}
+.scrim[hidden]{display:none}
+.panel{background:var(--card);width:min(520px,100%);height:100%;overflow-y:auto;padding:22px;display:flex;flex-direction:column;gap:14px;border-left:6px solid var(--c,var(--brand))}
+.panel h2{font-family:var(--display);margin:0;font-size:22px;text-wrap:balance}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.field input,.field select,.field textarea{border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:#fff}
+.field textarea{min-height:110px;resize:vertical}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.block{background:#fbfaf6;border-radius:10px;padding:12px}
+.block h4{margin:0 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.block p{margin:0;white-space:pre-wrap}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.err{color:#b3261e;font-size:13px}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:8px 14px;border-radius:8px;font-weight:600;z-index:30}
+.toast[hidden]{display:none}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+
+/* Resultados */
+.kpis{background:var(--ink);color:#fff;border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.kpis h3{margin:0;font-family:var(--display);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--brand)}
+.kpis h3 small{color:#bdbbb2;text-transform:none;letter-spacing:0;font-weight:500;font-family:var(--body);margin-left:6px}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.kpi{border-left:2px solid #3a3a36;padding:2px 10px;display:flex;flex-direction:column;gap:1px}
+.kpi b{font-family:var(--display);font-size:22px;font-variant-numeric:tabular-nums;line-height:1.15}
+.kpi span{font-size:12px;color:#cfcdc4}
+.kpi em{font-style:normal;font-size:12px;color:var(--brand);font-weight:700;font-variant-numeric:tabular-nums}
+.kpi.money b{color:var(--brand)}
+.card{cursor:pointer}
+.btn-res{padding:6px 12px;font-size:13px}
+.funnel{display:flex;gap:4px;align-items:center;font-size:12px;color:var(--muted);flex-wrap:wrap;font-variant-numeric:tabular-nums}
+.funnel b{color:var(--ink)}
+.funnel .sep{color:#c9c7bd}
+.funnel .sale{background:var(--brand);color:var(--ink);border-radius:4px;padding:0 5px;font-weight:700}
+.nores{font-size:12px;color:var(--warn);font-weight:600}
+.res-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.res-grid .field input{font-variant-numeric:tabular-nums}
+.rates{display:grid;grid-template-columns:repeat(2,1fr);gap:6px 14px;font-size:13px}
+.rates div{display:flex;justify-content:space-between;border-bottom:1px dashed var(--line);padding:3px 0}
+.rates b{font-variant-numeric:tabular-nums}
+.hint{font-size:12px;color:var(--muted);margin:0}
+td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+th.n{text-align:right}
+.sub-title{font-family:var(--display);font-size:16px;margin:18px 12px 8px}
+@media (max-width:720px){ .res-grid{grid-template-columns:1fr 1fr} .rates{grid-template-columns:1fr} }
+
+@media (max-width:720px){
+  .day{min-height:80px}
+  .chip{font-size:11px}
+  .filters{margin-left:0;width:100%}
+  .grid2{grid-template-columns:1fr}
+  .period{min-width:0}
+}
+@media (prefers-reduced-motion:no-preference){
+  .panel{animation:slide .18s ease-out}
+  @keyframes slide{from{transform:translateX(24px);opacity:.6}to{transform:none;opacity:1}}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="logo"><span class="logo-mark">Sí Viajo</span><h1>Campañas a bases de clientes</h1></div>
+  <div class="spacer"></div>
+  <button class="btn btn-brand" id="btnNew" type="button">+ Nueva campaña</button>
+</header>
+
+<main class="wrap">
+  <div class="notice" id="notice" hidden></div>
+
+  <section class="stats" id="stats" aria-label="Resumen"></section>
+  <section class="kpis" id="kpis" aria-label="Resultados del período"></section>
+
+  <div class="bar">
+    <div class="seg" role="group" aria-label="Vista">
+      <button type="button" data-view="semana" aria-pressed="true">Semana</button>
+      <button type="button" data-view="mes" aria-pressed="false">Mes</button>
+      <button type="button" data-view="lista" aria-pressed="false">Todas</button>
+    </div>
+    <div class="nav" id="navBox">
+      <button class="btn" id="prev" type="button" aria-label="Anterior">‹</button>
+      <button class="btn" id="hoy" type="button">Hoy</button>
+      <button class="btn" id="next" type="button" aria-label="Siguiente">›</button>
+    </div>
+    <h2 class="period" id="period"></h2>
+    <div class="filters">
+      <select id="fTipo" aria-label="Filtrar por tipo"></select>
+      <select id="fAsesor" aria-label="Filtrar por quién envía"></select>
+      <input id="fBuscar" type="search" placeholder="Buscar…" aria-label="Buscar campaña">
+    </div>
+  </div>
+
+  <section class="board" id="board"></section>
+  <div class="legend" id="legend"></div>
+
+  <h3 class="cards-title" id="cardsTitle"></h3>
+  <section class="cards" id="cards"></section>
+</main>
+
+<div class="scrim" id="scrim" hidden>
+  <aside class="panel" id="panel" role="dialog" aria-modal="true" aria-labelledby="panelTitle"></aside>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const TIPOS = {
+  "Recompra":"#2e9e5b",
+  "Promo / evento":"#e6b800",
+  "Reactivación":"#e07a1f",
+  "Cumpleaños / fecha especial":"#d14d8b",
+  "Lanzamiento / novedad":"#3b6fd8",
+  "Grupal / salida":"#1a9a9a",
+  "Fidelización / Plus":"#7b4fd1",
+  "Informativa":"#8b8a83"
+};
+const ENVIA = ["Marketing","People","Ventas","Director comercial","Otro"];
+const CANALES = ["WhatsApp","Email","SMS","Llamado","Redes / DM"];
+const MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+const DIAS = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+
+const state = { view:"semana", ref:new Date(), items:[], fTipo:"", fAsesor:"", q:"", db:null, col:null, canWrite:true };
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const parse = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y,m-1,d); };
+const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+const monday = d => { const x = new Date(d.getFullYear(),d.getMonth(),d.getDate()); const w = (x.getDay()+6)%7; return addDays(x,-w); };
+const fmt = s => { if(!s) return "—"; const d = parse(s); return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`; };
+const fmtLong = s => { if(!s) return "—"; const d = parse(s); return `${d.getDate()} de ${MESES[d.getMonth()]} ${d.getFullYear()}`; };
+const todayIso = () => iso(new Date());
+const color = t => TIPOS[t] || "#8b8a83";
+const estado = c => { const t = todayIso(); if(c.inicio > t) return "Programada"; if(c.fin && c.fin < t) return "Finalizada"; return "Activa"; };
+const overlaps = (c, a, b) => c.inicio && c.inicio <= b && (c.fin || c.inicio) >= a;
+
+/* Métricas */
+const RES_FIELDS = [
+  ["enviados","Enviados","Mensajes que salieron"],
+  ["respuestas","Respondieron","Clientes que contestaron"],
+  ["oportunidades","Oportunidades","Pidieron cotización / pasaron a un asesor"],
+  ["servicios","Servicios vendidos","Cantidad de servicios cerrados"],
+  ["ventas","Ventas (monto)","Monto total vendido"],
+  ["pasajeros","Pasajeros","Pasajeros de esas ventas"],
+  ["bajas","Bajas / no molestar","Pidieron no recibir más"]
+];
+const n = v => Number(v)||0;
+const hasRes = c => c.res && n(c.res.enviados)>0;
+const pct = (a,b) => b>0 ? (a/b*100) : null;
+const fpct = v => v==null ? "—" : (v<10 ? v.toFixed(1) : Math.round(v)) + "%";
+const fnum = v => Math.round(n(v)).toLocaleString("es-AR");
+const fmoney = (v,m) => `${m||"USD"} ${Math.round(n(v)).toLocaleString("es-AR")}`;
+function totals(list){
+  const t={enviados:0,respuestas:0,oportunidades:0,servicios:0,pasajeros:0,bajas:0,money:{},conRes:0,sinRes:0};
+  list.forEach(c=>{
+    if(!hasRes(c)){ t.sinRes++; return; }
+    t.conRes++;
+    ["enviados","respuestas","oportunidades","servicios","pasajeros","bajas"].forEach(k=>t[k]+=n(c.res[k]));
+    const m=c.res.moneda||"USD"; t.money[m]=(t.money[m]||0)+n(c.res.ventas);
+  });
+  return t;
+}
+function moneyStr(money){ const e=Object.entries(money).filter(([,v])=>v>0); return e.length ? e.map(([m,v])=>fmoney(v,m)).join(" + ") : "—"; }
+function ticket(money, serv){ const e=Object.entries(money).filter(([,v])=>v>0); return (e.length===1 && serv>0) ? fmoney(e[0][1]/serv, e[0][0]) : "—"; }
+function kpisHtml(t){
+  return `<div class="kpi-row">
+    <div class="kpi"><b>${fnum(t.enviados)}</b><span>Enviados</span></div>
+    <div class="kpi"><b>${fnum(t.respuestas)}</b><span>Respondieron</span><em>${fpct(pct(t.respuestas,t.enviados))} de respuesta</em></div>
+    <div class="kpi"><b>${fnum(t.oportunidades)}</b><span>Oportunidades</span><em>${fpct(pct(t.oportunidades,t.respuestas))} de las respuestas</em></div>
+    <div class="kpi"><b>${fnum(t.servicios)}</b><span>Servicios vendidos</span><em>${fpct(pct(t.servicios,t.oportunidades))} cierre de oportunidades</em></div>
+    <div class="kpi money"><b>${moneyStr(t.money)}</b><span>Ventas</span><em>Ticket prom. ${ticket(t.money,t.servicios)}</em></div>
+    <div class="kpi"><b>${fpct(pct(t.servicios,t.enviados))}</b><span>Conversión total</span><em>${fnum(t.pasajeros)} pax · ${fnum(t.bajas)} bajas</em></div>
+  </div>`;
+}
+function funnel(c){
+  if(!hasRes(c)) return estado(c)!=="Programada" ? `<div class="nores">Falta cargar resultados</div>` : "";
+  const r=c.res;
+  return `<div class="funnel"><b>${fnum(r.enviados)}</b> env.<span class="sep">›</span><b>${fnum(r.respuestas)}</b> resp. (${fpct(pct(n(r.respuestas),n(r.enviados)))})<span class="sep">›</span><b>${fnum(r.oportunidades)}</b> oport.<span class="sep">›</span><span class="sale">${fnum(r.servicios)} serv. · ${fmoney(r.ventas,r.moneda)}</span></div>`;
+}
+function renderKpis(list){
+  let label, scope;
+  if(state.view==="lista"){ scope=list; label="Todas las campañas"; }
+  else { const [a,b]=range().map(iso); scope=list.filter(c=>overlaps(c,a,b)); label = state.view==="semana" ? "Campañas activas esta semana" : "Campañas activas este mes"; }
+  const t=totals(scope);
+  $("#kpis").innerHTML = `<h3>Resultados<small>${label} · ${t.conRes} con datos${t.sinRes?` · ${t.sinRes} sin cargar`:""}</small></h3>` + kpisHtml(t);
+}
+
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>t.hidden=true,2200); }
+function notice(msg){ const n=$("#notice"); if(!msg){n.hidden=true;return;} n.textContent=msg; n.hidden=false; }
+
+function filtered(){
+  const q = state.q.trim().toLowerCase();
+  return state.items.filter(c =>
+    (!state.fTipo || c.tipo===state.fTipo) &&
+    (!state.fAsesor || c.asesor===state.fAsesor) &&
+    (!q || [c.nombre,c.mensaje,c.puntos,c.base,c.asesor].join(" ").toLowerCase().includes(q))
+  ).sort((a,b)=> (a.inicio||"").localeCompare(b.inicio||""));
+}
+
+function range(){
+  if(state.view==="semana"){ const a=monday(state.ref); return [a, addDays(a,6)]; }
+  const a=new Date(state.ref.getFullYear(),state.ref.getMonth(),1);
+  return [a, new Date(a.getFullYear(),a.getMonth()+1,0)];
+}
+
+function renderFilters(){
+  const ts=$("#fTipo"), as=$("#fAsesor");
+  ts.innerHTML = `<option value="">Todos los tipos</option>` + Object.keys(TIPOS).map(t=>`<option ${t===state.fTipo?"selected":""}>${esc(t)}</option>`).join("");
+  as.innerHTML = `<option value="">Envía: todos</option>` + ENVIA.map(t=>`<option ${t===state.fAsesor?"selected":""}>${esc(t)}</option>`).join("");
+  $("#legend").innerHTML = Object.entries(TIPOS).map(([t,c])=>`<span><span class="dot" style="--c:${c}"></span>${esc(t)}</span>`).join("");
+}
+
+function renderStats(){
+  const t=todayIso();
+  const [a,b]=[monday(new Date()), addDays(monday(new Date()),6)].map(iso);
+  const all=state.items;
+  const activas=all.filter(c=>estado(c)==="Activa").length;
+  const semana=all.filter(c=>overlaps(c,a,b)).length;
+  const prog=all.filter(c=>estado(c)==="Programada").length;
+  const prox=all.filter(c=>c.inicio> t && c.inicio<=iso(addDays(new Date(),7))).length;
+  $("#stats").innerHTML = `
+    <div class="stat hot"><b>${activas}</b><span>activas hoy</span></div>
+    <div class="stat"><b>${semana}</b><span>en esta semana</span></div>
+    <div class="stat"><b>${prox}</b><span>arrancan en los próximos 7 días</span></div>
+    <div class="stat"><b>${prog}</b><span>programadas</span></div>`;
+}
+
+function card(c){
+  const e=estado(c);
+  return `<article class="card" data-id="${esc(c.id)}" tabindex="0" style="--c:${color(c.tipo)}">
+    <div class="meta"><span class="pill tipo">${esc(c.tipo||"Sin tipo")}</span><span class="pill st-${e}">${e}</span>${c.canal?`<span class="pill">${esc(c.canal)}</span>`:""}</div>
+    <h3>${esc(c.nombre||"Sin nombre")}</h3>
+    <div class="dates">${fmt(c.inicio)} → ${fmt(c.fin)} · Envía: <b>${esc(c.asesor||"—")}</b>${c.base?` · ${esc(c.base)}`:""}</div>
+    ${c.mensaje?`<div class="msg">${esc(c.mensaje)}</div>`:""}
+    ${funnel(c)}
+    ${state.canWrite?`<div><button type="button" class="btn ${hasRes(c)?"":"btn-brand"} btn-res" data-res="${esc(c.id)}">${hasRes(c)?"Actualizar resultados":"Cargar resultados"}</button></div>`:""}
+  </article>`;
+}
+
+function renderWeek(list){
+  const a=monday(state.ref), days=[...Array(7)].map((_,i)=>addDays(a,i)), ai=iso(days[0]), bi=iso(days[6]), t=todayIso();
+  $("#period").textContent = `Semana del ${days[0].getDate()} ${MESES[days[0].getMonth()].slice(0,3)} al ${days[6].getDate()} ${MESES[days[6].getMonth()].slice(0,3)}`;
+  const act=list.filter(c=>overlaps(c,ai,bi));
+  let h=`<div class="wk-scroll"><div class="week"><div class="wh">Campaña</div>` + days.map((d,i)=>`<div class="wh ${iso(d)===t?"today":""}"><small>${DIAS[i]}</small>${d.getDate()}/${d.getMonth()+1}</div>`).join("");
+  if(!act.length) h+=`</div><div class="empty">No hay campañas activas esta semana. Usá “+ Nueva campaña” para cargar una.</div></div>`;
+  else{
+    act.forEach(c=>{
+      const fin=c.fin||c.inicio;
+      h+=`<div class="wname"><button type="button" data-id="${esc(c.id)}">${esc(c.nombre)}</button><small>Envía ${esc(c.asesor||"—")} · ${esc(c.canal||"")}</small></div>`;
+      days.forEach(d=>{
+        const di=iso(d), on = c.inicio<=di && fin>=di;
+        const s = on && (c.inicio===di || di===ai), e = on && (fin===di || di===bi);
+        h+=`<div class="wcell">${on?`<div class="wbar ${c.inicio===di?"s":""} ${fin===di?"e":""}" style="--c:${color(c.tipo)}" title="${esc(c.nombre)}"></div>`:""}</div>`;
+      });
+    });
+    h+=`</div></div>`;
+  }
+  $("#board").innerHTML=h;
+  $("#cardsTitle").textContent = act.length ? `Qué sale esta semana (${act.length})` : "";
+  $("#cards").innerHTML = act.map(card).join("");
+}
+
+function renderMonth(list){
+  const [a,b]=range(), first=monday(a), t=todayIso();
+  $("#period").textContent = `${MESES[a.getMonth()]} ${a.getFullYear()}`;
+  let h=`<div class="month">` + DIAS.map(d=>`<div class="dow">${d}</div>`).join("");
+  let d=first;
+  const last=addDays(monday(b),6);
+  while(d<=last){
+    const di=iso(d), inMonth=d.getMonth()===a.getMonth();
+    const on=list.filter(c=>c.inicio<=di && (c.fin||c.inicio)>=di);
+    h+=`<div class="day ${inMonth?"":"out"} ${di===t?"today":""}"><div class="num"><span>${d.getDate()}</span>${on.length?`<small>${on.length}</small>`:""}</div>`+
+      on.slice(0,3).map(c=>`<button type="button" class="chip" data-id="${esc(c.id)}" style="--c:${color(c.tipo)}" title="${esc(c.nombre)}">${esc(c.nombre)}</button>`).join("")+
+      (on.length>3?`<button type="button" class="more" data-day="${di}">+${on.length-3} más</button>`:"")+`</div>`;
+    d=addDays(d,1);
+  }
+  h+=`</div>`;
+  $("#board").innerHTML=h;
+  const act=list.filter(c=>overlaps(c,iso(a),iso(b)));
+  $("#cardsTitle").textContent = act.length ? `Activas en ${MESES[a.getMonth()]} (${act.length})` : "Sin campañas este mes";
+  $("#cards").innerHTML = act.map(card).join("");
+}
+
+function renderList(list){
+  $("#period").textContent = `Todas las campañas`;
+  if(!list.length){ $("#board").innerHTML=`<div class="empty">Todavía no hay campañas cargadas.</div>`; }
+  else {
+    const row = c => { const r=c.res||{}, ok=hasRes(c);
+      return `<tr class="row" data-id="${esc(c.id)}" tabindex="0"><td><b>${esc(c.nombre)}</b><br><small>${esc(c.asesor||"")} · ${esc(c.canal||"")}</small></td><td class="d">${fmt(c.inicio)} → ${fmt(c.fin)}</td><td><span class="dot" style="--c:${color(c.tipo)}"></span>${esc(c.tipo)}</td><td><span class="pill st-${estado(c)}">${estado(c)}</span></td>`+
+      (ok ? `<td class="n">${fnum(r.enviados)}</td><td class="n">${fnum(r.respuestas)} <small>(${fpct(pct(n(r.respuestas),n(r.enviados)))})</small></td><td class="n">${fnum(r.oportunidades)}</td><td class="n">${fnum(r.servicios)}</td><td class="n"><b>${fmoney(r.ventas,r.moneda)}</b></td><td class="n">${fpct(pct(n(r.servicios),n(r.enviados)))}</td>`
+          : `<td class="n" colspan="6"><span class="nores">${estado(c)==="Programada"?"Todavía no salió":"Falta cargar resultados"}</span>${state.canWrite?` <button type="button" class="btn btn-brand btn-res" data-res="${esc(c.id)}">Cargar</button>`:""}</td>`)+`</tr>`; };
+    const tipos = Object.keys(TIPOS).map(tp=>({tp, t:totals(list.filter(c=>c.tipo===tp)), cant:list.filter(c=>c.tipo===tp).length})).filter(x=>x.cant);
+    $("#board").innerHTML = `<div class="tbl-wrap"><table><thead><tr><th>Campaña</th><th>Fechas</th><th>Tipo</th><th>Estado</th><th class="n">Enviados</th><th class="n">Respondieron</th><th class="n">Oportunidades</th><th class="n">Servicios</th><th class="n">Ventas</th><th class="n">Conversión</th></tr></thead><tbody>`+
+      list.map(row).join("")+`</tbody></table></div>`+
+      `<h3 class="sub-title">Qué tipo de campaña rinde más</h3><div class="tbl-wrap"><table><thead><tr><th>Tipo</th><th class="n">Campañas</th><th class="n">Enviados</th><th class="n">% respuesta</th><th class="n">Oportunidades</th><th class="n">Servicios</th><th class="n">Ventas</th><th class="n">Conversión</th></tr></thead><tbody>`+
+      tipos.map(({tp,t,cant})=>`<tr><td><span class="dot" style="--c:${color(tp)}"></span>${esc(tp)}</td><td class="n">${cant}</td><td class="n">${fnum(t.enviados)}</td><td class="n">${fpct(pct(t.respuestas,t.enviados))}</td><td class="n">${fnum(t.oportunidades)}</td><td class="n">${fnum(t.servicios)}</td><td class="n"><b>${moneyStr(t.money)}</b></td><td class="n">${fpct(pct(t.servicios,t.enviados))}</td></tr>`).join("")+`</tbody></table></div>`;
+  }
+  $("#cardsTitle").textContent=""; $("#cards").innerHTML="";
+}
+
+function render(){
+  renderStats(); renderFilters(); renderKpis(filtered());
+  document.querySelectorAll("[data-view]").forEach(b=>b.setAttribute("aria-pressed", b.dataset.view===state.view));
+  $("#navBox").style.visibility = state.view==="lista" ? "hidden":"visible";
+  const list=filtered();
+  if(state.view==="semana") renderWeek(list); else if(state.view==="mes") renderMonth(list); else renderList(list);
+}
+
+/* Panel */
+function openPanel(html, c){ const p=$("#panel"); p.style.setProperty("--c", c?color(c.tipo):"var(--brand)"); p.innerHTML=html; $("#scrim").hidden=false; const f=p.querySelector("input,button"); f&&f.focus(); }
+function closePanel(){ $("#scrim").hidden=true; }
+
+function showDetail(id, toRes){
+  const c=state.items.find(x=>x.id===id); if(!c) return;
+  const e=estado(c);
+  openPanel(`
+    <div class="actions" style="justify-content:space-between"><div class="meta"><span class="pill tipo" style="--c:${color(c.tipo)}">${esc(c.tipo)}</span><span class="pill st-${e}">${e}</span></div><button class="btn btn-ghost" type="button" data-close>Cerrar ✕</button></div>
+    <h2 id="panelTitle">${esc(c.nombre)}</h2>
+    ${state.canWrite?`<div><button class="btn btn-brand" type="button" id="goRes">${hasRes(c)?"Actualizar resultados ↓":"Cargar resultados ↓"}</button></div>`:""}
+    <div class="grid2">
+      <div class="block"><h4>Fechas</h4><p>${fmtLong(c.inicio)}<br>al ${fmtLong(c.fin)}</p></div>
+      <div class="block"><h4>Quién envía</h4><p>${esc(c.asesor||"—")}</p></div>
+      <div class="block"><h4>Canal</h4><p>${esc(c.canal||"—")}</p></div>
+      <div class="block"><h4>Base / segmento</h4><p>${esc(c.base||"—")}</p></div>
+    </div>
+    <div class="block"><h4>Mensaje</h4><p>${esc(c.mensaje||"—")}</p></div>
+    ${c.mensaje?`<div><button class="btn btn-dark" type="button" id="copyMsg">Copiar mensaje</button></div>`:""}
+    <div class="block"><h4>Puntos a tener en cuenta</h4><p>${esc(c.puntos||"—")}</p></div>
+    <div class="block" id="resBlock" style="background:#fffbe0">
+      <h4>Resultados</h4>
+      <p class="hint">Cargá los números acumulados y actualizalos a medida que avanza la campaña.</p>
+      <form id="resForm" novalidate style="display:flex;flex-direction:column;gap:12px;margin-top:10px">
+        <div class="res-grid">
+          ${RES_FIELDS.map(([k,l,h])=>`<div class="field"><label for="r-${k}" title="${esc(h)}">${l}</label><input id="r-${k}" type="number" min="0" step="${k==="ventas"?"any":"1"}" inputmode="decimal" value="${c.res&&c.res[k]!=null?esc(c.res[k]):""}" ${state.canWrite?"":"disabled"}></div>`).join("")}
+          <div class="field"><label for="r-moneda">Moneda</label><select id="r-moneda" ${state.canWrite?"":"disabled"}>${["USD","ARS","EUR"].map(m=>`<option ${(c.res&&c.res.moneda||"USD")===m?"selected":""}>${m}</option>`).join("")}</select></div>
+        </div>
+        <div class="rates" id="rates"></div>
+        <div class="err" id="rerr"></div>
+        ${state.canWrite?`<div class="actions"><button class="btn btn-dark" type="submit">Guardar resultados</button>${c.res&&c.res.actualizado?`<span class="hint" style="align-self:center">Últ. carga: ${new Date(c.res.actualizado).toLocaleDateString("es-AR")}</span>`:""}</div>`:""}
+      </form>
+    </div>
+    <div class="actions">${state.canWrite?`<button class="btn" type="button" id="editBtn">Editar</button><button class="btn" type="button" id="dupBtn">Duplicar</button><button class="btn btn-danger" type="button" id="delBtn">Borrar</button>`:""}</div>
+    <div class="err" id="perr"></div>`, c);
+  const cm=$("#copyMsg"); cm && cm.addEventListener("click", async()=>{ try{ await navigator.clipboard.writeText(c.mensaje); toast("Mensaje copiado"); }catch{ toast("No se pudo copiar, seleccionalo a mano"); } });
+  const readRes = () => { const r={}; RES_FIELDS.forEach(([k])=>{ const v=$("#r-"+k).value; if(v!=="") r[k]=Number(v); }); r.moneda=$("#r-moneda").value; return r; };
+  const paintRates = () => { const r=readRes(), e=n(r.enviados), re=n(r.respuestas), o=n(r.oportunidades), s=n(r.servicios), v=n(r.ventas);
+    $("#rates").innerHTML = `
+      <div><span>% respuesta</span><b>${fpct(pct(re,e))}</b></div>
+      <div><span>Respuesta → oportunidad</span><b>${fpct(pct(o,re))}</b></div>
+      <div><span>Cierre de oportunidades</span><b>${fpct(pct(s,o))}</b></div>
+      <div><span>Conversión total</span><b>${fpct(pct(s,e))}</b></div>
+      <div><span>Ticket promedio</span><b>${s>0?fmoney(v/s,r.moneda):"—"}</b></div>
+      <div><span>Venta cada 100 enviados</span><b>${e>0?fmoney(v/e*100,r.moneda):"—"}</b></div>
+      <div><span>% bajas</span><b>${fpct(pct(n(r.bajas),e))}</b></div>`; };
+  paintRates();
+  if(toRes){ const rb=$("#resBlock"); rb.scrollIntoView({block:"start"}); const f=$("#r-enviados"); f && f.focus({preventScroll:true}); }
+  $("#resForm").addEventListener("input", paintRates);
+  $("#resForm").addEventListener("submit", async ev=>{
+    ev.preventDefault();
+    const r=readRes();
+    if(Object.entries(r).some(([k,v])=>k!=="moneda" && v<0)){ $("#rerr").textContent="Los números no pueden ser negativos."; return; }
+    if(n(r.respuestas)>n(r.enviados) && n(r.enviados)>0){ $("#rerr").textContent="Hay más respuestas que enviados: revisá los números."; return; }
+    if(n(r.oportunidades)>n(r.respuestas) && n(r.respuestas)>0){ $("#rerr").textContent="Hay más oportunidades que respuestas: revisá los números."; return; }
+    if(n(r.enviados)===0){ $("#rerr").textContent="Cargá al menos cuántos mensajes se enviaron."; return; }
+    r.actualizado=new Date().toISOString();
+    const btn=ev.submitter; btn && (btn.disabled=true);
+    try{ await saveRes(c.id, r); toast("Resultados guardados"); closePanel(); render(); }
+    catch(err){ btn && (btn.disabled=false); $("#rerr").textContent="No se pudieron guardar. Probá de nuevo."; }
+  });
+  const gr=$("#goRes"); gr && gr.addEventListener("click",()=>{ $("#resBlock").scrollIntoView({block:"start",behavior:"smooth"}); $("#r-enviados").focus({preventScroll:true}); });
+  const eb=$("#editBtn"); eb && eb.addEventListener("click",()=>showForm(c));
+  const db=$("#dupBtn"); db && db.addEventListener("click",()=>{ const {id,res,...rest}=c; showForm({...rest, nombre:rest.nombre+" (copia)"}); });
+  const del=$("#delBtn"); del && del.addEventListener("click", async(ev)=>{
+    if(del.dataset.sure!=="1"){ del.dataset.sure="1"; del.textContent="¿Seguro? Tocá de nuevo para borrar"; return; }
+    try{ await removeItem(c.id); closePanel(); toast("Campaña borrada"); }catch(err){ $("#perr").textContent="No se pudo borrar. Probá de nuevo."; }
+  });
+}
+
+function showForm(c){
+  c = c || {};
+  const editing=!!c.id;
+  const today=todayIso();
+  openPanel(`
+    <div class="actions" style="justify-content:space-between"><h2 id="panelTitle">${editing?"Editar campaña":"Nueva campaña"}</h2><button class="btn btn-ghost" type="button" data-close>Cerrar ✕</button></div>
+    <form id="form" class="field" style="gap:12px" novalidate>
+      <div class="field"><label for="f-nombre">Nombre de la campaña</label><input id="f-nombre" required value="${esc(c.nombre||"")}" placeholder="Ej: Recompra verano 2027"></div>
+      <div class="grid2">
+        <div class="field"><label for="f-inicio">Inicio</label><input id="f-inicio" type="date" required value="${esc(c.inicio||today)}"></div>
+        <div class="field"><label for="f-fin">Fin</label><input id="f-fin" type="date" required value="${esc(c.fin||c.inicio||today)}"></div>
+        <div class="field"><label for="f-tipo">Tipo</label><select id="f-tipo">${Object.keys(TIPOS).map(t=>`<option ${t===c.tipo?"selected":""}>${esc(t)}</option>`).join("")}</select></div>
+        <div class="field"><label for="f-canal">Canal</label><select id="f-canal">${CANALES.map(t=>`<option ${t===c.canal?"selected":""}>${esc(t)}</option>`).join("")}</select></div>
+        <div class="field"><label for="f-asesor">Quién envía</label><select id="f-asesor">${ENVIA.map(t=>`<option ${t===c.asesor?"selected":""}>${esc(t)}</option>`).join("")}</select></div>
+        <div class="field"><label for="f-base">Base / segmento</label><input id="f-base" value="${esc(c.base||"")}" placeholder="Ej: Pasajeros Europa 2025"></div>
+      </div>
+      <div class="field"><label for="f-mensaje">Mensaje</label><textarea id="f-mensaje" placeholder="El texto que se envía">${esc(c.mensaje||"")}</textarea></div>
+      <div class="field"><label for="f-puntos">Puntos a tener en cuenta</label><textarea id="f-puntos" placeholder="A quién no mandar, cómo personalizar, a quién derivar…">${esc(c.puntos||"")}</textarea></div>
+      <div class="err" id="ferr"></div>
+      <div class="actions"><button class="btn btn-brand" type="submit">${editing?"Guardar cambios":"Guardar campaña"}</button><button class="btn" type="button" data-close>Cancelar</button></div>
+    </form>`, c);
+  $("#form").addEventListener("submit", async ev=>{
+    ev.preventDefault();
+    const v = id => $(id).value.trim();
+    const data={ nombre:v("#f-nombre"), inicio:v("#f-inicio"), fin:v("#f-fin"), tipo:v("#f-tipo"), canal:v("#f-canal"), asesor:v("#f-asesor"), base:v("#f-base"), mensaje:$("#f-mensaje").value.trim(), puntos:$("#f-puntos").value.trim() };
+    if(!data.nombre || !data.inicio || !data.fin){ $("#ferr").textContent="Completá el nombre y las dos fechas."; return; }
+    if(data.fin < data.inicio){ $("#ferr").textContent="La fecha de fin no puede ser anterior al inicio."; return; }
+    const btn=ev.submitter||$("#form button[type=submit]"); btn.disabled=true;
+    try{
+      await saveItem(c.id, data);
+      state.ref=parse(data.inicio);
+      closePanel(); toast(editing?"Cambios guardados":"Campaña guardada");
+      render();
+    }catch(err){
+      btn.disabled=false;
+      $("#ferr").textContent = err && err.code==="invalid_argument" ? "No tenés permiso para guardar en este calendario." : "No se pudo guardar. Revisá la conexión y probá de nuevo.";
+    }
+  });
+}
+
+/* Datos */
+/* Datos: Google Sheet vía Apps Script */
+const CFG = window.SIVIAJO_CONFIG || {};
+const KEY_LS = "sv-campanas-clave";
+const getKey = () => { try{ return localStorage.getItem(KEY_LS)||""; }catch{ return state._key||""; } };
+const setKey = k => { state._key=k; try{ localStorage.setItem(KEY_LS,k); }catch{} };
+
+async function api(action, payload){
+  const res = await fetch(CFG.API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({action, key:getKey(), ...payload}) });
+  const j = await res.json();
+  if(!j.ok){ const e=new Error(j.error||"error"); e.code=j.error; throw e; }
+  return j;
+}
+async function load(silent){
+  try{
+    const j = await api("list");
+    state.items = j.items || [];
+    notice(""); render();
+  }catch(err){
+    if(err.code==="clave"){ askKey("La clave no es correcta. Pedísela a Marketing."); return; }
+    if(!silent) notice("No se pudo conectar con la base de campañas. Revisá la conexión y recargá la página.");
+  }
+}
+async function saveItem(id, data){
+  data.actualizado = new Date().toISOString();
+  const cur = id ? (state.items.find(x=>x.id===id)||{}) : {};
+  const item = {...cur, ...data, id: id || ("c" + Date.now().toString(36) + Math.random().toString(36).slice(2,6))};
+  await api("save", {item});
+  await load(true);
+}
+async function saveRes(id, res){
+  const cur = state.items.find(x=>x.id===id) || {id};
+  await api("save", {item:{...cur, res}});
+  await load(true);
+}
+async function removeItem(id){
+  await api("delete", {id});
+  await load(true);
+}
+
+function askKey(msg){
+  openPanel(`
+    <h2 id="panelTitle">Entrar al calendario de campañas</h2>
+    <p class="hint">${esc(msg||"Ingresá la clave del equipo. Se pide una sola vez en este navegador.")}</p>
+    <form id="keyForm" class="field" style="gap:12px" novalidate>
+      <div class="field"><label for="k-clave">Clave del equipo</label><input id="k-clave" type="password" autocomplete="current-password" required></div>
+      <div class="actions"><button class="btn btn-brand" type="submit">Entrar</button></div>
+    </form>`);
+  $("#keyForm").addEventListener("submit", e=>{ e.preventDefault(); const k=$("#k-clave").value.trim(); if(!k) return; setKey(k); closePanel(); load(); });
+}
+
+async function connect(){
+  if(!CFG.API_URL){ notice("Falta configurar la conexión con la Google Sheet (archivo config.js). Mirá el README del repositorio."); render(); return; }
+  if(!getKey()){ render(); askKey(); return; }
+  await load();
+  setInterval(()=>{ if(document.visibilityState==="visible" && $("#scrim").hidden) load(true); }, 60000);
+}
+
+/* Eventos */
+document.addEventListener("click", e=>{
+  const v=e.target.closest("[data-view]"); if(v){ state.view=v.dataset.view; render(); return; }
+  if(e.target.closest("[data-close]") || e.target.id==="scrim"){ closePanel(); return; }
+  const more=e.target.closest("[data-day]"); if(more){ state.ref=parse(more.dataset.day); state.view="semana"; render(); return; }
+  const rb=e.target.closest("[data-res]"); if(rb){ showDetail(rb.dataset.res, true); return; }
+  const it=e.target.closest("[data-id]"); if(it && !e.target.closest("#panel")){ showDetail(it.dataset.id); }
+});
+document.addEventListener("keydown", e=>{
+  if(e.key==="Escape" && !$("#scrim").hidden) closePanel();
+  if(e.key==="Enter" && e.target.matches("tr.row, article.card")) showDetail(e.target.dataset.id);
+});
+$("#btnNew").addEventListener("click",()=>showForm());
+$("#prev").addEventListener("click",()=>{ state.ref = state.view==="semana"? addDays(state.ref,-7) : new Date(state.ref.getFullYear(),state.ref.getMonth()-1,1); render(); });
+$("#next").addEventListener("click",()=>{ state.ref = state.view==="semana"? addDays(state.ref,7) : new Date(state.ref.getFullYear(),state.ref.getMonth()+1,1); render(); });
+$("#hoy").addEventListener("click",()=>{ state.ref=new Date(); render(); });
+$("#fTipo").addEventListener("change",e=>{ state.fTipo=e.target.value; render(); });
+$("#fAsesor").addEventListener("change",e=>{ state.fAsesor=e.target.value; render(); });
+$("#fBuscar").addEventListener("input",e=>{ state.q=e.target.value; render(); $("#fBuscar").focus(); });
+
+render();
+connect();
+</script>
+</body>
+</html>
