@@ -4,8 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Campañas a bases · Sí Viajo</title>
-<meta name="robots" content="noindex">
-<script src="config.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -536,61 +534,44 @@ function showForm(c){
 }
 
 /* Datos */
-/* Datos: Google Sheet vía Apps Script */
-const CFG = window.SIVIAJO_CONFIG || {};
-const KEY_LS = "sv-campanas-clave";
-const getKey = () => { try{ return localStorage.getItem(KEY_LS)||""; }catch{ return state._key||""; } };
-const setKey = k => { state._key=k; try{ localStorage.setItem(KEY_LS,k); }catch{} };
-
-async function api(action, payload){
-  const res = await fetch(CFG.API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({action, key:getKey(), ...payload}) });
-  const j = await res.json();
-  if(!j.ok){ const e=new Error(j.error||"error"); e.code=j.error; throw e; }
-  return j;
-}
-async function load(silent){
-  try{
-    const j = await api("list");
-    state.items = j.items || [];
-    notice(""); render();
-  }catch(err){
-    if(err.code==="clave"){ askKey("La clave no es correcta. Pedísela a Marketing."); return; }
-    if(!silent) notice("No se pudo conectar con la base de campañas. Revisá la conexión y recargá la página.");
-  }
-}
+const LS_KEY="sv-campanas-datos";
+function persist(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(state.items)); }catch{} }
+function loadLocal(){ try{ state.items = JSON.parse(localStorage.getItem(LS_KEY)||"[]"); }catch{ state.items=[]; } }
 async function saveItem(id, data){
   data.actualizado = new Date().toISOString();
-  const cur = id ? (state.items.find(x=>x.id===id)||{}) : {};
-  const item = {...cur, ...data, id: id || ("c" + Date.now().toString(36) + Math.random().toString(36).slice(2,6))};
-  await api("save", {item});
-  await load(true);
+  if(state.col){
+    if(id) await state.col.doc(id).update(data); else await state.col.add(data);
+  } else {
+    if(id){ const i=state.items.findIndex(x=>x.id===id); state.items[i]={...state.items[i],...data,id}; }
+    else state.items.push({...data,id:"local-"+Date.now()});
+    persist(); render();
+  }
 }
 async function saveRes(id, res){
-  const cur = state.items.find(x=>x.id===id) || {id};
-  await api("save", {item:{...cur, res}});
-  await load(true);
+  if(state.col){ const {id:_, ...cur} = state.items.find(x=>x.id===id) || {}; await state.col.doc(id).set({...cur, res}); }
+  else { const i=state.items.findIndex(x=>x.id===id); state.items[i]={...state.items[i],res}; persist(); }
 }
 async function removeItem(id){
-  await api("delete", {id});
-  await load(true);
-}
-
-function askKey(msg){
-  openPanel(`
-    <h2 id="panelTitle">Entrar al calendario de campañas</h2>
-    <p class="hint">${esc(msg||"Ingresá la clave del equipo. Se pide una sola vez en este navegador.")}</p>
-    <form id="keyForm" class="field" style="gap:12px" novalidate>
-      <div class="field"><label for="k-clave">Clave del equipo</label><input id="k-clave" type="password" autocomplete="current-password" required></div>
-      <div class="actions"><button class="btn btn-brand" type="submit">Entrar</button></div>
-    </form>`);
-  $("#keyForm").addEventListener("submit", e=>{ e.preventDefault(); const k=$("#k-clave").value.trim(); if(!k) return; setKey(k); closePanel(); load(); });
+  if(state.col) await state.col.doc(id).delete();
+  else { state.items=state.items.filter(x=>x.id!==id); persist(); render(); }
 }
 
 async function connect(){
-  if(!CFG.API_URL){ notice("Falta configurar la conexión con la Google Sheet (archivo config.js). Mirá el README del repositorio."); render(); return; }
-  if(!getKey()){ render(); askKey(); return; }
-  await load();
-  setInterval(()=>{ if(document.visibilityState==="visible" && $("#scrim").hidden) load(true); }, 60000);
+  let timer=setTimeout(()=>notice("Todavía no se pudo conectar con el calendario compartido. Si sigue así, recargá la página."),10000);
+  let db=null;
+  try{ db = window.claude ? await window.claude.use("db") : null; }catch{ db=null; }
+  if(!db){ clearTimeout(timer); loadLocal(); notice("Los datos se guardan en este navegador."); render(); return; }
+  try{
+    const user = await window.claude.use("user");
+    if(user && user.can){ const w = await user.can("data.write"); if(w===false) state.canWrite=false; }
+  }catch{}
+  if(!state.canWrite){ $("#btnNew").hidden=true; }
+  state.db=db; state.col=db.collection("campanas");
+  state.col.onSnapshot(snap=>{
+    if(!snap.metadata.fromCache){ clearTimeout(timer); notice(""); }
+    state.items = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    render();
+  }, err=>{ clearTimeout(timer); notice("Se cortó la conexión con el calendario. Recargá la página para volver a verlo actualizado."); });
 }
 
 /* Eventos */
